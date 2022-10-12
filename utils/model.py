@@ -2,19 +2,20 @@ import torch
 import torch.nn as nn
 import pickle
 
+
 class MimoCnnModel(nn.Module):
-    def __init__(self,trial, ensemble_num: int, num_categories: int):
+    def __init__(self, trial, ensemble_num: int, num_categories: int):
         super(MimoCnnModel, self).__init__()
         self.ensemble_num = ensemble_num
-        self.hidden_dim = trial.suggest_int('hidden dim',128,1024)
+        self.hidden_dim = trial.suggest_int('hidden dim', 128, 1024)
         self.output_dim = trial.suggest_int('output_dim', 64, 512)
         self.num_channels = trial.suggest_int('num_channels', 64, 256)
         self.final_img_resolution = 6
         self.input_dim = self.num_channels * ((self.final_img_resolution - 2) *
                                               ((self.final_img_resolution * ensemble_num) - 8))
         self.conv_module = ConvModule(self.num_channels, self.final_img_resolution, ensemble_num)
-        self.linear_input = nn.Linear(self.input_dim,self.hidden_dim)
-        self.hidden_linear = nn.Linear(self.hidden_dim,self.output_dim)
+        self.linear_input = nn.Linear(self.input_dim, self.hidden_dim)
+        self.hidden_linear = nn.Linear(self.hidden_dim, self.output_dim)
         self.output_layer = nn.Linear(self.output_dim, num_categories * ensemble_num)
         self.softmax = nn.LogSoftmax(dim=-1)
 
@@ -68,4 +69,3 @@ class ConvModule(nn.Module):
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         output = self.module(input_tensor)
         return output
-

@@ -4,15 +4,17 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import pickle
 import optuna
-from optuna.trial import TrialState
 from dataloaders import create_train_dataloader, create_test_dataloader
-from config import config
+from config import master_config
+from model import MimoCnnModel
 
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
 torch.backends.cudnn.benchmark = True
 
 '''Custom Optuna pruner that prunes a trial if a minimum accuracy stated is not reached by the given epoch threshold'''
+
+
 def pruner(epoch_threshold, current_epoch, min_acc, current_acc):
     if current_epoch > epoch_threshold and current_acc < min_acc:
         return True
@@ -20,9 +22,9 @@ def pruner(epoch_threshold, current_epoch, min_acc, current_acc):
         return False
 
 
-
-
-def objective(trial, mimo_model, datasets, study_name, config = config):
+def objective(trial, datasets, study_name, config=master_config, mimo_model=MimoCnnModel):
+    o_config = config.optuna_config
+    m_config = config.model_config
     # Model and main parameter initialization
     num_epochs = 50
     batch_size = trial.suggest_categorical('batch_size', [4, 8, 16])
@@ -30,7 +32,7 @@ def objective(trial, mimo_model, datasets, study_name, config = config):
     train_loader = create_train_dataloader(datasets['train_dataset'], batch_size, ensemble_num)
     test_loader = create_test_dataloader(datasets['test_dataset'], batch_size, ensemble_num)
     try:
-        model = mimo_model(trial=trial).to(device)
+        model = mimo_model(trial=trial, ensemble_num=ensemble_num, num_categories=m_config.num_categories).to(device)
         print(model)
     except Exception as e:
         print('Infeasible model, trial will be skipped')
@@ -46,9 +48,11 @@ def objective(trial, mimo_model, datasets, study_name, config = config):
     for epoch in range(num_epochs):
         model.train()
         train_loss = 0.0
-        for datum in zip(*train_loader):
-            model_inputs = torch.cat([data[0] for data in datum], dim=3).to(device)
-            targets = torch.stack([data[1] for data in datum]).to(device)
+        for batch_idx, (model_inputs, targets) in enumerate(train_loader):
+            # Limiting training data for faster epochs.
+            if batch_idx * batch_size >= o_config.n_train_examples:
+                break
+            model_inputs, targets = model_inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(model_inputs)
             ensemble_num, batch_size = list(targets.size())
@@ -66,9 +70,11 @@ def objective(trial, mimo_model, datasets, study_name, config = config):
         test_size = 0
         correct = 0
         with torch.no_grad():
-            for data in test_loader:
-                model_inputs = torch.cat([data[0]] * ensemble_num, dim=3).to(device)
-                target = data[1].to(device)
+            for batch_idx, (model_inputs, target) in enumerate(test_loader):
+                # Limiting validation data.
+                if batch_idx * batch_size >= o_config.n_test_examples:
+                    break
+                model_inputs, target = model_inputs.to(device), target.to(device)
                 outputs = model(model_inputs)
                 output = torch.mean(outputs, axis=1)
                 test_size += len(target)
@@ -80,14 +86,15 @@ def objective(trial, mimo_model, datasets, study_name, config = config):
         acc = 100.0 * correct / test_size
         print(f'epoch {epoch}: {acc}')
         trial.report(acc, epoch)
-        should_prune = False
         # Check if it should be pruned by the default pruner
-        should_prune = config.allow_default_pruning and trial.should_prune()
+        should_prune = o_config.allow_default_pruning and trial.should_prune()
         # Check if it should not be pruned during random trials
-        should_prune != config.disable_random_trial_pruning and trial.number > config.n_random_trials
+        if should_prune and o_config.disable_random_trial_pruning:
+            should_prune = trial.number > o_config.n_random_trials
         # Check if custom pruner should be used
-        if config.custom_pruning:
-            should_prune = should_prune or pruner(config.epoch_threshold,epoch,config.accuracy_threshold,acc)
+        if o_config.custom_pruning:
+            should_prune = should_prune or pruner(o_config.epoch_threshold, epoch,
+                                                  o_config.accuracy_threshold, acc)
         if should_prune:
             raise optuna.exceptions.TrialPruned()
     torch.save(model.state_dict(), f"model_repo\\{trial.number}_{study_name}.pyt")

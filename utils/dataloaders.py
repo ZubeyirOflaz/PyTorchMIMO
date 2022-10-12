@@ -17,8 +17,8 @@ def collate_training(batch, batch_size, ensemble_num):
     ensembles = [data[i * ensemble_num:(i * ensemble_num) + ensemble_num] for i in batch_range]
     ensemble_targets = [target[i * ensemble_num:(i * ensemble_num) + ensemble_num] for i in batch_range]
     # Concatenate tensors to the ensembles
-    ensembles = [torch.cat(i, dim=2) for i in ensembles]
-    ensemble_targets = [torch.stack(i, dim=0) for i in ensemble_targets]
+    ensembles = torch.stack([torch.cat(i, dim=2) for i in ensembles])
+    ensemble_targets = torch.tensor(ensemble_targets)
     return [ensembles, ensemble_targets]
 
 
@@ -30,14 +30,14 @@ def collate_test(batch, ensemble_num):
     data = [i[0] for i in batch]
     target = [i[1] for i in batch]
     # multiply the data and concat as one input
-    data_mimo = [torch.cat([i] * ensemble_num, dim=2) for i in data]
+    data_mimo = torch.stack([torch.cat([i] * ensemble_num, dim=2) for i in data])
     return [data_mimo, target]
 
 
 def create_train_dataloader(dataset, batch_size, ensemble_num, **params):
-    complete_dataset = [[dataset] * ensemble_num]
-    complete_dataset = ConcatDataset(complete_dataset)
-    train_loader = DataLoader(complete_dataset, batch_size=(batch_size * ensemble_num),
+    '''complete_dataset = [[dataset] * ensemble_num]
+    complete_dataset = ConcatDataset(complete_dataset)'''
+    train_loader = DataLoader(dataset, batch_size=(batch_size * ensemble_num),
                               collate_fn=partial(collate_training,
                                                  batch_size=batch_size, ensemble_num=ensemble_num),
                               **params)
@@ -47,7 +47,7 @@ def create_train_dataloader(dataset, batch_size, ensemble_num, **params):
 def create_test_dataloader(dataset, batch_size, ensemble_num, **params):
     test_loader = DataLoader(dataset, batch_size=batch_size,
                              collate_fn=partial(collate_test,
-                                                batch_size=batch_size, ensemble_num=ensemble_num),
+                                                ensemble_num=ensemble_num),
                              **params)
     return test_loader
 
