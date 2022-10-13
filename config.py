@@ -32,5 +32,5 @@ class master_config(NamedTuple):
     optuna_config = optuna_config
     model_config = model_config
     training_config = training_config
-    num_epochs: int = 50
+    num_epochs: int = 15
     num_workers: int = 0

@@ -1,13 +1,30 @@
-from utils.dataloaders import create_train_dataloader, create_test_dataloader
 from torchvision import datasets, transforms
 import torch
 import time
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
-train_dataset = datasets.MNIST("../data", train=True, download=True, transform=transform)
-train_load = create_train_dataloader(train_dataset,4,3)
+from utils.trainer import objective
+from utils.model import MimoCnnModel
+from config import master_config
+import random
+import optuna
+from functools import partial
+
+study_name = str(random.randint(100000, 999999))
+
+
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
+master_config.device = device
+o_config = master_config.optuna_config
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0, 1)])
 
-test_dataset = datasets.MNIST("../data", train=False, transform=transform)
-test_load = create_test_dataloader(test_dataset,4,3)
-test_test = next(iter(test_load))
+datasets = {'train_dataset' : datasets.MNIST("../data", train=True, download=True, transform=transform),
+            'test_dataset' : datasets.MNIST("../data", train=False, transform=transform)}
+
+
+study = optuna.create_study(sampler=optuna.samplers.TPESampler(multivariate=True, group=True,
+                                                               n_startup_trials=o_config.n_random_trials),
+                                direction='maximize', study_name=study_name)
+
+study.optimize(partial(objective, datasets = datasets,
+                       study_name = study_name, mimo_model = MimoCnnModel,
+                       config = master_config), n_trials=50)

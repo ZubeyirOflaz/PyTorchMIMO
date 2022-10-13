@@ -1,15 +1,13 @@
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import pickle
 import optuna
-from dataloaders import create_train_dataloader, create_test_dataloader
-from config import master_config
-from model import MimoCnnModel
+from utils.dataloaders import create_train_dataloader, create_test_dataloader
+from utils.model import MimoCnnModel
 
-use_cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if use_cuda else "cpu")
+
 torch.backends.cudnn.benchmark = True
 
 '''Custom Optuna pruner that prunes a trial if a minimum accuracy stated is not reached by the given epoch threshold'''
@@ -22,13 +20,14 @@ def pruner(epoch_threshold, current_epoch, min_acc, current_acc):
         return False
 
 
-def objective(trial, datasets, study_name, config=master_config, mimo_model=MimoCnnModel):
+def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
     o_config = config.optuna_config
     m_config = config.model_config
+    device = config.device
     # Model and main parameter initialization
     num_epochs = 50
-    batch_size = trial.suggest_categorical('batch_size', [4, 8, 16])
-    ensemble_num = trial.suggest_categorical('ensemble_num', [3, 4])
+    batch_size = trial.suggest_categorical('batch_size', [4, 8])
+    ensemble_num = trial.suggest_categorical('ensemble_num', [3,4])
     train_loader = create_train_dataloader(datasets['train_dataset'], batch_size, ensemble_num)
     test_loader = create_test_dataloader(datasets['test_dataset'], batch_size, ensemble_num)
     try:
@@ -42,7 +41,7 @@ def objective(trial, datasets, study_name, config=master_config, mimo_model=Mimo
     lr = trial.suggest_float("lr", 5e-6, 5e-1, log=True)
     optimizer = getattr(optim, 'Adam')(model.parameters(), lr=lr)
     gamma = trial.suggest_float('gamma', 0.95, 1)
-    scheduler = StepLR(optimizer, step_size=(len(train_loader[0])), gamma=gamma)
+    scheduler = StepLR(optimizer, step_size=(len(train_loader)), gamma=gamma)
 
     # Training and eval loop
     for epoch in range(num_epochs):
@@ -99,7 +98,7 @@ def objective(trial, datasets, study_name, config=master_config, mimo_model=Mimo
             raise optuna.exceptions.TrialPruned()
     torch.save(model.state_dict(), f"model_repo\\{trial.number}_{study_name}.pyt")
 
-    '''with open("model_repo\\{}.pickle".format(trial.number), "wb") as fout:
-        pickle.dump(model, fout)'''
+    with open(f"model_repo\\{trial.number}_{study_name}.pkl", "wb") as fout:
+        pickle.dump(model, fout)
 
     return acc

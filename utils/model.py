@@ -12,8 +12,8 @@ class MimoCnnModel(nn.Module):
         self.num_channels = trial.suggest_int('num_channels', 64, 256)
         self.final_img_resolution = 6
         self.input_dim = self.num_channels * ((self.final_img_resolution - 2) *
-                                              ((self.final_img_resolution * ensemble_num) - 8))
-        self.conv_module = ConvModule(self.num_channels, self.final_img_resolution, ensemble_num)
+                                              ((self.final_img_resolution * ensemble_num) - ((3*ensemble_num)-1)))
+        self.conv_module = ConvModule(trial, self.num_channels, self.final_img_resolution, ensemble_num)
         self.linear_input = nn.Linear(self.input_dim, self.hidden_dim)
         self.hidden_linear = nn.Linear(self.hidden_dim, self.output_dim)
         self.output_layer = nn.Linear(self.output_dim, num_categories * ensemble_num)
@@ -37,7 +37,7 @@ class ConvModule(nn.Module):
     def __init__(self, trial, num_channels: int, final_img_resolution: int, ensemble_num: int):
         super(ConvModule, self).__init__()
         layers = []
-        num_layers = trial.suggest_int('num_cnn_layers', 2, 2)
+        num_layers = 2
         cnn_dropout = trial.suggest_discrete_uniform('drop_out_cnn', 0.05, 0.5, 0.05)
         input_channels = 1
         for i in range(num_layers):

@@ -17,7 +17,11 @@ def collate_training(batch, batch_size, ensemble_num):
     ensembles = [data[i * ensemble_num:(i * ensemble_num) + ensemble_num] for i in batch_range]
     ensemble_targets = [target[i * ensemble_num:(i * ensemble_num) + ensemble_num] for i in batch_range]
     # Concatenate tensors to the ensembles
-    ensembles = torch.stack([torch.cat(i, dim=2) for i in ensembles])
+    try:
+        ensembles = torch.stack([torch.cat(i, dim=2) for i in ensembles])
+    except:
+        print(f'Collate error. Batch_size:{batch_size}. Ensemble_num:{ensemble_num}. Tensor:{ensembles[0]}'
+              f'list_len:{len(ensembles)}')
     ensemble_targets = torch.tensor(ensemble_targets)
     return [ensembles, ensemble_targets]
 
@@ -28,7 +32,7 @@ def collate_training(batch, batch_size, ensemble_num):
 def collate_test(batch, ensemble_num):
     # get x and y
     data = [i[0] for i in batch]
-    target = [i[1] for i in batch]
+    target = torch.tensor([i[1] for i in batch])
     # multiply the data and concat as one input
     data_mimo = torch.stack([torch.cat([i] * ensemble_num, dim=2) for i in data])
     return [data_mimo, target]
