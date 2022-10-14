@@ -1,22 +1,23 @@
 import torch
 import torch.nn as nn
 import pickle
+from config import model_config
 
 
 class MimoCnnModel(nn.Module):
-    def __init__(self, trial, ensemble_num: int, num_categories: int):
+    def __init__(self, trial, ensemble_num: int, cfg: model_config):
         super(MimoCnnModel, self).__init__()
         self.ensemble_num = ensemble_num
-        self.hidden_dim = trial.suggest_int('hidden dim', 128, 1024)
-        self.output_dim = trial.suggest_int('output_dim', 64, 512)
-        self.num_channels = trial.suggest_int('num_channels', 64, 256)
-        self.final_img_resolution = 6
+        self.hidden_dim = trial.suggest_int('hidden dim', cfg.hidden_linear_dim[0], cfg.hidden_linear_dim[1])
+        self.output_dim = trial.suggest_int('output_dim', cfg.output_linear_dim[0],cfg.output_linear_dim[1])
+        self.num_channels = trial.suggest_int('num_channels', cfg.num_output_channels[0], cfg.num_output_channels[1])
+        self.final_img_resolution = cfg.final_image_resolution
         self.input_dim = self.num_channels * ((self.final_img_resolution - 2) *
                                               ((self.final_img_resolution * ensemble_num) - ((3*ensemble_num)-1)))
-        self.conv_module = ConvModule(trial, self.num_channels, self.final_img_resolution, ensemble_num)
+        self.conv_module = ConvModule(trial, self.num_channels, self.final_img_resolution, ensemble_num, cfg)
         self.linear_input = nn.Linear(self.input_dim, self.hidden_dim)
         self.hidden_linear = nn.Linear(self.hidden_dim, self.output_dim)
-        self.output_layer = nn.Linear(self.output_dim, num_categories * ensemble_num)
+        self.output_layer = nn.Linear(self.output_dim, cfg.num_categories * ensemble_num)
         self.softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
@@ -34,17 +35,17 @@ class MimoCnnModel(nn.Module):
 
 
 class ConvModule(nn.Module):
-    def __init__(self, trial, num_channels: int, final_img_resolution: int, ensemble_num: int):
+    def __init__(self, trial, num_channels: int, final_img_resolution: int, ensemble_num: int, cfg):
         super(ConvModule, self).__init__()
         layers = []
-        num_layers = 2
-        cnn_dropout = trial.suggest_discrete_uniform('drop_out_cnn', 0.05, 0.5, 0.05)
+        num_layers = cfg.num_cnn_layers
+        cnn_dropout = trial.suggest_categorical('drop_out_cnn', cfg.cnn_dropout)
         input_channels = 1
         for i in range(num_layers):
-            filter_base = [4, 8, 16, 32, 64]
+            filter_base = cfg.cnn_channel_base
             filter_selections = [y * (i + 1) for y in filter_base]
             num_filters = trial.suggest_categorical(f'num_filters_{i}', filter_selections)
-            kernel_size = trial.suggest_int(f'kernel_size_{i}', 3, 5)
+            kernel_size = trial.suggest_int(f'kernel_size_{i}', cfg.kernel_size[0], cfg.kernel_size[1])
 
             if i < 1:
                 pool_stride = 2
@@ -61,7 +62,7 @@ class ConvModule(nn.Module):
                 layers.append(nn.MaxPool2d((2, 2 * ensemble_num), pool_stride))
                 layers.append(nn.Dropout(cnn_dropout))
             input_channels = num_filters
-        layers.append(nn.AdaptiveMaxPool2d((final_img_resolution, final_img_resolution * ensemble_num)))
+        layers.append(nn.AdaptiveMaxPool2d((cfg.final_image_resolution, cfg.final_image_resolution * ensemble_num)))
         layers.append(nn.Conv2d(input_channels, num_channels, (3, 3 * ensemble_num)))
         self.layers = layers
         self.module = nn.Sequential(*self.layers)

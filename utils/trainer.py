@@ -22,7 +22,7 @@ def pruner(epoch_threshold, current_epoch, min_acc, current_acc):
 
 def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
     o_config = config.optuna_config
-    m_config = config.model_config
+    mcf = config.model_config
     device = config.device
     # Model and main parameter initialization
     num_epochs = 50
@@ -31,7 +31,7 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
     train_loader = create_train_dataloader(datasets['train_dataset'], batch_size, ensemble_num)
     test_loader = create_test_dataloader(datasets['test_dataset'], batch_size, ensemble_num)
     try:
-        model = mimo_model(trial=trial, ensemble_num=ensemble_num, num_categories=m_config.num_categories).to(device)
+        model = mimo_model(trial=trial, ensemble_num=ensemble_num, cfg=mcf).to(device)
         print(model)
     except Exception as e:
         print('Infeasible model, trial will be skipped')

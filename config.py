@@ -26,11 +26,21 @@ class training_config(NamedTuple):
 
 class model_config(NamedTuple):
     num_categories = 10
+    final_image_resolution = 6
+    num_cnn_layers = 2
+
+    hidden_linear_dim = (128, 1024)
+    output_linear_dim = (64, 512)
+    num_output_channels = (64, 256)
+
+    cnn_dropout = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.4, 0.45, 0.50]
+    kernel_size = (3,5)
+    cnn_channel_base = [4, 8, 16, 32, 64]
 
 
 class master_config(NamedTuple):
     optuna_config = optuna_config
     model_config = model_config
     training_config = training_config
-    num_epochs: int = 15
+    num_epochs: int = 50
     num_workers: int = 0
