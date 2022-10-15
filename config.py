@@ -2,10 +2,12 @@ from typing import NamedTuple
 
 
 class optuna_config(NamedTuple):
-    class_distribution = 'normal'
     # Optuna training parameters
-
+    lr = (5e-6, 5e-1)
+    gamma = (0.95, 1)
+    optim = 'Adam'
     # Number of randomized trials for TPE Sampler
+    class_distribution = 'normal'
     n_random_trials = 35
     # Number of training and validation samples per epoch
     n_train_examples = 5000
@@ -18,6 +20,9 @@ class optuna_config(NamedTuple):
     # Custom pruning parameters
     epoch_threshold = 10
     accuracy_threshold = 70
+    #TPE Sampler parameters
+    multivariate = True
+    grouped = True
 
 
 class training_config(NamedTuple):
@@ -44,3 +49,5 @@ class master_config(NamedTuple):
     training_config = training_config
     num_epochs: int = 50
     num_workers: int = 0
+    batch_size = [4, 8]
+    ensemble_num = [3,4,5]

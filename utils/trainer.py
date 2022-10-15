@@ -21,13 +21,13 @@ def pruner(epoch_threshold, current_epoch, min_acc, current_acc):
 
 
 def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
-    o_config = config.optuna_config
+    ocf = config.optuna_config
     mcf = config.model_config
     device = config.device
     # Model and main parameter initialization
-    num_epochs = 50
-    batch_size = trial.suggest_categorical('batch_size', [4, 8])
-    ensemble_num = trial.suggest_categorical('ensemble_num', [3,4])
+    num_epochs = config.num_epochs
+    batch_size = trial.suggest_categorical('batch_size', config.batch_size)
+    ensemble_num = trial.suggest_categorical('ensemble_num', config.ensemble_num)
     train_loader = create_train_dataloader(datasets['train_dataset'], batch_size, ensemble_num)
     test_loader = create_test_dataloader(datasets['test_dataset'], batch_size, ensemble_num)
     try:
@@ -38,9 +38,9 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
         print(e)
         raise optuna.exceptions.TrialPruned()
     # optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
-    lr = trial.suggest_float("lr", 5e-6, 5e-1, log=True)
-    optimizer = getattr(optim, 'Adam')(model.parameters(), lr=lr)
-    gamma = trial.suggest_float('gamma', 0.95, 1)
+    lr = trial.suggest_float("lr", ocf.lr[0], ocf.lr[1], log=True)
+    optimizer = getattr(optim, ocf.optim)(model.parameters(), lr=lr)
+    gamma = trial.suggest_float('gamma', ocf.gamma[0],ocf.gamma[1])
     scheduler = StepLR(optimizer, step_size=(len(train_loader)), gamma=gamma)
 
     # Training and eval loop
@@ -49,7 +49,7 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
         train_loss = 0.0
         for batch_idx, (model_inputs, targets) in enumerate(train_loader):
             # Limiting training data for faster epochs.
-            if batch_idx * batch_size >= o_config.n_train_examples:
+            if batch_idx * batch_size >= ocf.n_train_examples:
                 break
             model_inputs, targets = model_inputs.to(device), targets.to(device)
             optimizer.zero_grad()
@@ -71,7 +71,7 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
         with torch.no_grad():
             for batch_idx, (model_inputs, target) in enumerate(test_loader):
                 # Limiting validation data.
-                if batch_idx * batch_size >= o_config.n_test_examples:
+                if batch_idx * batch_size >= ocf.n_test_examples:
                     break
                 model_inputs, target = model_inputs.to(device), target.to(device)
                 outputs = model(model_inputs)
@@ -86,14 +86,14 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
         print(f'epoch {epoch}: {acc}')
         trial.report(acc, epoch)
         # Check if it should be pruned by the default pruner
-        should_prune = o_config.allow_default_pruning and trial.should_prune()
+        should_prune = ocf.allow_default_pruning and trial.should_prune()
         # Check if it should not be pruned during random trials
-        if should_prune and o_config.disable_random_trial_pruning:
-            should_prune = trial.number > o_config.n_random_trials
+        if should_prune and ocf.disable_random_trial_pruning:
+            should_prune = trial.number > ocf.n_random_trials
         # Check if custom pruner should be used
-        if o_config.custom_pruning:
-            should_prune = should_prune or pruner(o_config.epoch_threshold, epoch,
-                                                  o_config.accuracy_threshold, acc)
+        if ocf.custom_pruning:
+            should_prune = should_prune or pruner(ocf.epoch_threshold, epoch,
+                                                  ocf.accuracy_threshold, acc)
         if should_prune:
             raise optuna.exceptions.TrialPruned()
     torch.save(model.state_dict(), f"model_repo\\{trial.number}_{study_name}.pyt")
