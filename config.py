@@ -33,6 +33,7 @@ class model_config(NamedTuple):
     num_categories = 10
     final_image_resolution = 6
     num_cnn_layers = 2
+    input_image_size = (28, 28)
 
     hidden_linear_dim = (128, 1024)
     output_linear_dim = (64, 512)
