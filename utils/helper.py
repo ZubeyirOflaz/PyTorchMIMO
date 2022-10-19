@@ -1,5 +1,11 @@
 import pandas as pd
 import numpy as np
+from functools import reduce
+from operator import __add__
+import logging
+
+log = logging.debug
+
 
 def create_study_analysis(optuna_study):
     parameters = [i.params for i in optuna_study]
@@ -31,16 +37,39 @@ def weighted_classes_arrhythmia(a_dataset, n_classes=16, return_count=False):
     else:
         return weight
 
+
+def calculate_pad(kernel_size):
+    conv_padding = reduce(__add__,
+                          [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
+    return conv_padding
+
+
 def conv2d_output_size(input_size, padding, kernel_size, stride):
     if isinstance(padding, int):
-        padding = (padding, ) * 2
+        padding = (padding,) * 2
     if isinstance(stride, int):
-        stride = (stride, ) * 2
+        stride = (stride,) * 2
 
     output_size = (
-        np.floor((input_size[1] + 2 * padding[0] - (kernel_size[0] - 1) - 1) /
+        np.floor((input_size[0] + 2 * padding[0] - (kernel_size[0] - 1) - 1) /
                  stride[0] + 1).astype(int),
-        np.floor((input_size[2] + 2 * padding[1] - (kernel_size[1] - 1) - 1) /
+        np.floor((input_size[1] + 2 * padding[1] - (kernel_size[1] - 1) - 1) /
                  stride[1] + 1).astype(int)
     )
+    log(output_size)
     return output_size
+
+
+def determine_stride_padding(input_size, kernel_size, final_resolution):
+    stride = 2
+    padding = None
+    (h, w) = conv2d_output_size(input_size, 0, kernel_size, stride)
+    print(f'{h},{w}')
+    log('conv executed')
+    if h < final_resolution[0] or w < final_resolution[1]:
+        stride = 1
+        (h, w) = conv2d_output_size(input_size, (0, 0), kernel_size, stride)
+        if h < final_resolution[0] or w < final_resolution[1]:
+            padding = calculate_pad(kernel_size)
+            h, w = input_size[0], input_size[1]
+    return stride, padding, (h, w)

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import pickle
 from config import model_config
-
+from utils.helper import determine_stride_padding
 
 class MimoCnnModel(nn.Module):
     def __init__(self, trial, ensemble_num: int, cfg: model_config):
@@ -14,7 +14,7 @@ class MimoCnnModel(nn.Module):
         self.final_img_resolution = cfg.final_image_resolution
         self.input_dim = self.num_channels * ((self.final_img_resolution - 2) *
                                               ((self.final_img_resolution * ensemble_num) - ((3*ensemble_num)-1)))
-        self.conv_module = ConvModule(trial, self.num_channels, self.final_img_resolution, ensemble_num, cfg)
+        self.conv_module = ConvModule(trial, self.num_channels, ensemble_num, cfg)
         self.linear_input = nn.Linear(self.input_dim, self.hidden_dim)
         self.hidden_linear = nn.Linear(self.hidden_dim, self.output_dim)
         self.output_layer = nn.Linear(self.output_dim, cfg.num_categories * ensemble_num)
@@ -35,34 +35,35 @@ class MimoCnnModel(nn.Module):
 
 
 class ConvModule(nn.Module):
-    def __init__(self, trial, num_channels: int, final_img_resolution: int, ensemble_num: int, cfg):
+    def __init__(self, trial, num_channels: int, ensemble_num: int, cfg):
         super(ConvModule, self).__init__()
         layers = []
         num_layers = cfg.num_cnn_layers
         cnn_dropout = trial.suggest_categorical('drop_out_cnn', cfg.cnn_dropout)
         input_channels = 1
+        resolution = (cfg.input_image_size[0], cfg.input_image_size[1] * ensemble_num)
+        filter_base = cfg.cnn_channel_base
         for i in range(num_layers):
-            filter_base = cfg.cnn_channel_base
             filter_selections = [y * (i + 1) for y in filter_base]
             num_filters = trial.suggest_categorical(f'num_filters_{i}', filter_selections)
             kernel_size = trial.suggest_int(f'kernel_size_{i}', cfg.kernel_size[0], cfg.kernel_size[1])
-
-            if i < 1:
-                pool_stride = 2
-            else:
-                pool_stride = 1
-            layers.append(nn.Conv2d(input_channels, num_filters, (kernel_size,
-                                                                  (kernel_size * ensemble_num)), stride=pool_stride))
-            if i < 1:
-                pool_stride = 2
-            else:
-                pool_stride = 1
+            conv_kernel = (kernel_size,kernel_size*ensemble_num)
+            pool_kernel = (2, 2*ensemble_num)
+            final_resolution = (cfg.final_image_resolution, cfg.final_image_resolution * ensemble_num)
+            stride, padding, resolution = determine_stride_padding(resolution,conv_kernel,final_resolution)
+            print(f'{i}: {conv_kernel}, {stride}')
+            if padding:
+                layers.append(nn.ZeroPad2d(padding))
+            layers.append(nn.Conv2d(input_channels, num_filters, conv_kernel, stride=stride))
+            layers.append(nn.ReLU())
             if i < num_layers - 1:
-                layers.append(nn.ReLU())
-                layers.append(nn.MaxPool2d((2, 2 * ensemble_num), pool_stride))
-                layers.append(nn.Dropout(cnn_dropout))
+                stride, padding, resolution = determine_stride_padding(resolution, pool_kernel, final_resolution)
+                if padding:
+                    layers.append(nn.ZeroPad2d(padding))
+                layers.append(nn.MaxPool2d(pool_kernel, stride))
+            layers.append(nn.Dropout(cnn_dropout))
             input_channels = num_filters
-        layers.append(nn.AdaptiveMaxPool2d((cfg.final_image_resolution, cfg.final_image_resolution * ensemble_num)))
+        layers.append(nn.AdaptiveMaxPool2d(final_resolution))
         layers.append(nn.Conv2d(input_channels, num_channels, (3, 3 * ensemble_num)))
         self.layers = layers
         self.module = nn.Sequential(*self.layers)
