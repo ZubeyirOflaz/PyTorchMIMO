@@ -50,5 +50,6 @@ class master_config(NamedTuple):
     training_config = training_config
     num_epochs = 50
     num_workers = 0
+    num_trials = 50
     batch_size = [4, 8]
     ensemble_num = [3,4]

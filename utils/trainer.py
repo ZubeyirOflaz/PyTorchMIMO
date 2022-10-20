@@ -96,7 +96,6 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
                                                   ocf.accuracy_threshold, acc)
         if should_prune:
             raise optuna.exceptions.TrialPruned()
-    torch.save(model.state_dict(), f"model_repo\\{trial.number}_{study_name}.pyt")
 
     with open(f"model_repo\\{trial.number}_{study_name}.pkl", "wb") as fout:
         pickle.dump(model, fout)
