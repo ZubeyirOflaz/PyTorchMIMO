@@ -40,7 +40,7 @@ class ConvModule(nn.Module):
         layers = []
         num_layers = cfg.num_cnn_layers
         cnn_dropout = trial.suggest_categorical('drop_out_cnn', cfg.cnn_dropout)
-        input_channels = 1
+        input_channels = cfg.num_image_channels
         resolution = (cfg.input_image_size[0], cfg.input_image_size[1] * ensemble_num)
         filter_base = cfg.cnn_channel_base
         for i in range(num_layers):

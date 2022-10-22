@@ -3,6 +3,12 @@ import numpy as np
 from functools import reduce
 from operator import __add__
 import logging
+import time
+import torch
+from torch.utils.data import DataLoader
+import thop
+import torchmetrics
+import torch.distributions as dists
 
 log = logging.debug
 
@@ -73,3 +79,45 @@ def determine_stride_padding(input_size, kernel_size, final_resolution):
             padding = calculate_pad(kernel_size)
             h, w = input_size[0], input_size[1]
     return stride, padding, (h, w)
+
+def get_runtime_model_size(dataloader: DataLoader, model, batch_size : int):
+    dataset_len = len(dataloader.dataset)
+    preds = []
+    targets = []
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda:0" if use_cuda else "cpu")
+    model.to(device)
+    start_time = time.time()
+    for data in dataloader:
+        outputs = model(data[0])
+        output = torch.mean(outputs, axis=1).cpu().detach()
+        preds.append(output.cpu().detach())
+        targets.append(data[1].cpu().detach())
+    runtime = time.time() - start_time
+    preds = torch.cat(preds)
+    targets = torch.cat(targets)
+    flops, params = thop.profile(model.to(device),inputs=(data[0].to(device),), verbose=False)
+    flops = flops/batch_size
+    runtime = runtime/dataset_len
+    results = {'flops' : flops,
+               'params' : params,
+               'runtime':runtime,
+               'preds':preds,
+               'targets':targets}
+    return results
+
+def get_metrics(predictions, targets, ece_bins=10, n_class = 2):
+    metrics = dict()
+    metrics['nll'] = -dists.Categorical(predictions).log_prob(targets).mean()
+    metrics['ece'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins)
+    metrics['mce'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins)
+    metrics['auroc'] = torchmetrics.functional.auroc(predictions,targets,num_classes=n_class)
+    return metrics
+
+if __name__ == "__main__":
+    a = 1
+    def test(val):
+        global a
+        a = val
+    test(2)
+    print(a)

@@ -34,6 +34,7 @@ class model_config(NamedTuple):
     final_image_resolution = 6
     num_cnn_layers = 5
     input_image_size = (28, 28)
+    num_image_channels = 1
 
     hidden_linear_dim = (128, 1024)
     output_linear_dim = (64, 512)

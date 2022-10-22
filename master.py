@@ -12,7 +12,7 @@ from utils.helper import create_study_analysis
 from optuna.trial import TrialState
 
 study_name = str(random.randint(100000, 999999))
-
+study_path = None
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
 master_config.device = device
@@ -22,11 +22,16 @@ transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0, 1
 datasets = {'train_dataset': datasets.MNIST("../data", train=True, download=True, transform=transform),
             'test_dataset': datasets.MNIST("../data", train=False, transform=transform)}
 
-study = optuna.create_study(sampler=optuna.samplers.TPESampler(multivariate=o_config.multivariate,
-                                                               group=o_config.grouped,
-                                                               n_startup_trials=o_config.n_random_trials),
-                            direction='maximize', study_name=study_name)
-if __name__ == "__main__":
+if study_path:
+    with open(study_path, 'rb') as fin:
+        study = pickle.load(fin)
+else:
+    study = optuna.create_study(sampler=optuna.samplers.TPESampler(multivariate=o_config.multivariate,
+                                                                   group=o_config.grouped,
+                                                                   n_startup_trials=o_config.n_random_trials),
+                                direction='maximize', study_name=study_name)
+
+
     study.optimize(partial(objective, datasets=datasets,
                        study_name=study_name, mimo_model=MimoCnnModel,
                        config=master_config), n_trials=master_config.num_trials)
