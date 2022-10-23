@@ -1,7 +1,7 @@
 '''Contains the functions used to create the dataloaders for training and validation'''
 
 import torch
-from torch.utils.data import ConcatDataset, DataLoader
+from torch.utils.data import DataLoader
 from functools import partial
 
 '''collating function for the training dataloader'''

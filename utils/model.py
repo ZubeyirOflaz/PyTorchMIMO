@@ -43,13 +43,13 @@ class ConvModule(nn.Module):
         input_channels = cfg.num_image_channels
         resolution = (cfg.input_image_size[0], cfg.input_image_size[1] * ensemble_num)
         filter_base = cfg.cnn_channel_base
+        final_resolution = (cfg.final_image_resolution, cfg.final_image_resolution * ensemble_num)
         for i in range(num_layers):
             filter_selections = [y * (i + 1) for y in filter_base]
             num_filters = trial.suggest_categorical(f'num_filters_{i}', filter_selections)
             kernel_size = trial.suggest_int(f'kernel_size_{i}', cfg.kernel_size[0], cfg.kernel_size[1])
             conv_kernel = (kernel_size,kernel_size*ensemble_num)
             pool_kernel = (2, 2*ensemble_num)
-            final_resolution = (cfg.final_image_resolution, cfg.final_image_resolution * ensemble_num)
             stride, padding, resolution = determine_stride_padding(resolution,conv_kernel,final_resolution)
             print(f'{i}: {conv_kernel}, {stride}')
             if padding:

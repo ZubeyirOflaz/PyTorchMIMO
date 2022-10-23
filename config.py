@@ -49,8 +49,8 @@ class master_config(NamedTuple):
     optuna_config = optuna_config
     model_config = model_config
     training_config = training_config
-    num_epochs = 50
+    num_epochs = 10
     num_workers = 0
-    num_trials = 50
+    num_trials = 1
     batch_size = [4, 8]
     ensemble_num = [3,4]

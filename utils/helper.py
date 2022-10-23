@@ -12,6 +12,8 @@ import torch.distributions as dists
 
 log = logging.debug
 
+'''Function to create a pandas dataframe from trials. Inputs an Optuna study, outputs a Pandas dataframe'''
+
 
 def create_study_analysis(optuna_study):
     parameters = [i.params for i in optuna_study]
@@ -24,7 +26,13 @@ def create_study_analysis(optuna_study):
     return df
 
 
-def weighted_classes_arrhythmia(a_dataset, n_classes=16, return_count=False):
+'''Function used to find the class distribution of a dataset
+Inputs the target dataset, number of classes within the dataset. 
+Outputs the weight per class.
+'''
+
+
+def weighted_classes(a_dataset, n_classes: int):
     count = [0] * n_classes
     for _, y in enumerate(a_dataset):
         count[y[1].numpy()[0]] += 1
@@ -38,16 +46,23 @@ def weighted_classes_arrhythmia(a_dataset, n_classes=16, return_count=False):
     weight = [0] * len(a_dataset)
     for idx, val in enumerate(a_dataset):
         weight[idx] = weight_per_class[val[1]]
-    if return_count:
-        return weight, count
-    else:
-        return weight
+    return weight
+
+
+'''Function for calculating same padding in PyTorch
+Inputs the kernel size that will be applied
+Outputs the padding size'''
 
 
 def calculate_pad(kernel_size):
     conv_padding = reduce(__add__,
                           [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_size[::-1]])
     return conv_padding
+
+
+'''Function for calculating the tensor size after and convolution layer is applied
+Inputs the size of input image, the size of padding kernel size and stride of a convolution or pooling layer
+Outputs the size of resulting tensor'''
 
 
 def conv2d_output_size(input_size, padding, kernel_size, stride):
@@ -66,6 +81,10 @@ def conv2d_output_size(input_size, padding, kernel_size, stride):
     return output_size
 
 
+'''Function used to regulate the tensor size for Optuna models. It reduces stride and introduces padding when needed
+Inputs the size of the input tensor, kernel size of a conv or pooling layer and final allowed resolution for the model
+Outputs the stride amount and, if needed, padding size'''
+
 def determine_stride_padding(input_size, kernel_size, final_resolution):
     stride = 2
     padding = None
@@ -80,7 +99,8 @@ def determine_stride_padding(input_size, kernel_size, final_resolution):
             h, w = input_size[0], input_size[1]
     return stride, padding, (h, w)
 
-def get_runtime_model_size(dataloader: DataLoader, model, batch_size : int):
+
+def get_runtime_model_size(dataloader: DataLoader, model, batch_size: int):
     dataset_len = len(dataloader.dataset)
     preds = []
     targets = []
@@ -96,28 +116,34 @@ def get_runtime_model_size(dataloader: DataLoader, model, batch_size : int):
     runtime = time.time() - start_time
     preds = torch.cat(preds)
     targets = torch.cat(targets)
-    flops, params = thop.profile(model.to(device),inputs=(data[0].to(device),), verbose=False)
-    flops = flops/batch_size
-    runtime = runtime/dataset_len
-    results = {'flops' : flops,
-               'params' : params,
-               'runtime':runtime,
-               'preds':preds,
-               'targets':targets}
+    flops, params = thop.profile(model.to(device), inputs=(data[0].to(device),), verbose=False)
+    flops = flops / batch_size
+    runtime = runtime / dataset_len
+    results = {'flops': flops,
+               'params': params,
+               'runtime': runtime,
+               'preds': preds,
+               'targets': targets}
     return results
 
-def get_metrics(predictions, targets, ece_bins=10, n_class = 2):
+
+def get_metrics(predictions, targets, ece_bins=10, n_class=2):
     metrics = dict()
     metrics['nll'] = -dists.Categorical(predictions).log_prob(targets).mean()
     metrics['ece'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins)
     metrics['mce'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins)
-    metrics['auroc'] = torchmetrics.functional.auroc(predictions,targets,num_classes=n_class)
+    metrics['auroc'] = torchmetrics.functional.auroc(predictions, targets, num_classes=n_class)
     return metrics
+
 
 if __name__ == "__main__":
     a = 1
+
+
     def test(val):
         global a
         a = val
+
+
     test(2)
     print(a)
