@@ -28,8 +28,10 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
     num_epochs = config.num_epochs
     batch_size = trial.suggest_categorical('batch_size', config.batch_size)
     ensemble_num = trial.suggest_categorical('ensemble_num', config.ensemble_num)
-    train_loader = create_train_dataloader(datasets['train_dataset'], batch_size, ensemble_num)
-    test_loader = create_test_dataloader(datasets['test_dataset'], batch_size, ensemble_num)
+    train_loader = create_train_dataloader(datasets['train_dataset'],
+                                           batch_size, ensemble_num,device,**config.dataloader_params)
+    test_loader = create_test_dataloader(datasets['test_dataset'],
+                                         batch_size, ensemble_num,device,**config.dataloader_params)
     try:
         model = mimo_model(trial=trial, ensemble_num=ensemble_num, cfg=mcf).to(device)
         print(model)
@@ -37,7 +39,6 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
         print('Infeasible model, trial will be skipped')
         print(e)
         raise optuna.exceptions.TrialPruned()
-    # optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
     lr = trial.suggest_float("lr", ocf.lr[0], ocf.lr[1], log=True)
     optimizer = getattr(optim, ocf.optim)(model.parameters(), lr=lr)
     gamma = trial.suggest_float('gamma', ocf.gamma[0],ocf.gamma[1])
@@ -51,10 +52,11 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
             # Limiting training data for faster epochs.
             if batch_idx * batch_size >= ocf.n_train_examples:
                 break
-            model_inputs, targets = model_inputs.to(device), targets.to(device)
+            model_inputs, targets = model_inputs.to(device, non_blocking = True), \
+                                    targets.to(device, non_blocking = True)
             optimizer.zero_grad()
             outputs = model(model_inputs)
-            ensemble_num, batch_size = list(targets.size())
+            # ensemble_num, batch_size = list(targets.size())
 
             loss = F.nll_loss(
                 outputs.reshape(ensemble_num * batch_size, -1), targets.reshape(ensemble_num * batch_size)
@@ -73,7 +75,8 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
                 # Limiting validation data.
                 if batch_idx * batch_size >= ocf.n_test_examples:
                     break
-                model_inputs, target = model_inputs.to(device), target.to(device)
+                model_inputs, target = model_inputs.to(device, non_blocking = True), \
+                                       target.to(device, non_blocking = True)
                 outputs = model(model_inputs)
                 output = torch.mean(outputs, axis=1)
                 test_size += len(target)

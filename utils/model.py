@@ -51,7 +51,6 @@ class ConvModule(nn.Module):
             conv_kernel = (kernel_size,kernel_size*ensemble_num)
             pool_kernel = (2, 2*ensemble_num)
             stride, padding, resolution = determine_stride_padding(resolution,conv_kernel,final_resolution)
-            print(f'{i}: {conv_kernel}, {stride}')
             if padding:
                 layers.append(nn.ZeroPad2d(padding))
             layers.append(nn.Conv2d(input_channels, num_filters, conv_kernel, stride=stride))

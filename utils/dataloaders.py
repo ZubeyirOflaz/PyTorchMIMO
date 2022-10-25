@@ -23,7 +23,7 @@ def collate_training(batch, batch_size, ensemble_num, device):
         print(f'Collate error. Batch_size:{batch_size}. Ensemble_num:{ensemble_num}. Tensor:{ensembles[0]}'
               f'list_len:{len(ensembles)}')
     ensemble_targets = torch.tensor(ensemble_targets)
-    return [ensembles.to(device), ensemble_targets.to(device)]
+    return [ensembles, ensemble_targets]
 
 
 '''collating function for the test dataloader'''
@@ -35,7 +35,7 @@ def collate_test(batch, ensemble_num, device):
     target = torch.tensor([i[1] for i in batch])
     # multiply the data and concat as one input
     data_mimo = torch.stack([torch.cat([i] * ensemble_num, dim=2) for i in data])
-    return [data_mimo.to(device), target.to(device)]
+    return [data_mimo, target]
 
 
 def create_train_dataloader(dataset, batch_size, ensemble_num, device, **params):

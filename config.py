@@ -10,7 +10,7 @@ class optuna_config(NamedTuple):
     class_distribution = 'normal'
     n_random_trials = 35
     # Number of training and validation samples per epoch
-    n_train_examples = 5000
+    n_train_examples = 50000
     n_test_examples = 2000
     # Enable pruning (custom pruning can be modified from the trainer.py script)
     allow_default_pruning = True
@@ -20,7 +20,7 @@ class optuna_config(NamedTuple):
     # Custom pruning parameters
     epoch_threshold = 10
     accuracy_threshold = 70
-    #TPE Sampler parameters
+    # TPE Sampler parameters
     multivariate = True
     grouped = True
 
@@ -32,7 +32,7 @@ class training_config(NamedTuple):
 class model_config(NamedTuple):
     num_categories = 10
     final_image_resolution = 6
-    num_cnn_layers = 5
+    num_cnn_layers = 4
     input_image_size = (28, 28)
     num_image_channels = 1
 
@@ -41,7 +41,7 @@ class model_config(NamedTuple):
     num_output_channels = (64, 256)
 
     cnn_dropout = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.4, 0.45, 0.50]
-    kernel_size = (3,5)
+    kernel_size = (3, 5)
     cnn_channel_base = [4, 8, 16]
 
 
@@ -49,8 +49,9 @@ class master_config(NamedTuple):
     optuna_config = optuna_config
     model_config = model_config
     training_config = training_config
-    num_epochs = 10
-    num_workers = 0
-    num_trials = 1
+    num_epochs = 50
+    dataloader_params = {'pin_memory':True,
+                         'drop_last': True}
+    num_trials = 100
     batch_size = [4, 8]
-    ensemble_num = [3,4]
+    ensemble_num = [3, 4]

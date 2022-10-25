@@ -89,7 +89,6 @@ def determine_stride_padding(input_size, kernel_size, final_resolution):
     stride = 2
     padding = None
     (h, w) = conv2d_output_size(input_size, 0, kernel_size, stride)
-    print(f'{h},{w}')
     log('conv executed')
     if h < final_resolution[0] or w < final_resolution[1]:
         stride = 1
