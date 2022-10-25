@@ -8,7 +8,7 @@ from functools import partial
 
 '''Preload data to GPU using collate functions'''
 
-def collate_training(batch, batch_size, ensemble_num):
+def collate_training(batch, batch_size, ensemble_num, device):
     # get x and y
     data = [i[0] for i in batch]
     target = [i[1] for i in batch]
@@ -23,35 +23,35 @@ def collate_training(batch, batch_size, ensemble_num):
         print(f'Collate error. Batch_size:{batch_size}. Ensemble_num:{ensemble_num}. Tensor:{ensembles[0]}'
               f'list_len:{len(ensembles)}')
     ensemble_targets = torch.tensor(ensemble_targets)
-    return [ensembles, ensemble_targets]
+    return [ensembles.to(device), ensemble_targets.to(device)]
 
 
 '''collating function for the test dataloader'''
 
 
-def collate_test(batch, ensemble_num):
+def collate_test(batch, ensemble_num, device):
     # get x and y
     data = [i[0] for i in batch]
     target = torch.tensor([i[1] for i in batch])
     # multiply the data and concat as one input
     data_mimo = torch.stack([torch.cat([i] * ensemble_num, dim=2) for i in data])
-    return [data_mimo, target]
+    return [data_mimo.to(device), target.to(device)]
 
 
-def create_train_dataloader(dataset, batch_size, ensemble_num, **params):
+def create_train_dataloader(dataset, batch_size, ensemble_num, device, **params):
     '''complete_dataset = [[dataset] * ensemble_num]
     complete_dataset = ConcatDataset(complete_dataset)'''
     train_loader = DataLoader(dataset, batch_size=(batch_size * ensemble_num),
                               collate_fn=partial(collate_training,
-                                                 batch_size=batch_size, ensemble_num=ensemble_num),
+                                                 batch_size=batch_size, ensemble_num=ensemble_num, device=device),
                               **params)
     return train_loader
 
 
-def create_test_dataloader(dataset, batch_size, ensemble_num, **params):
+def create_test_dataloader(dataset, batch_size, ensemble_num, device, **params):
     test_loader = DataLoader(dataset, batch_size=batch_size,
                              collate_fn=partial(collate_test,
-                                                ensemble_num=ensemble_num),
+                                                ensemble_num=ensemble_num, device=device),
                              **params)
     return test_loader
 
