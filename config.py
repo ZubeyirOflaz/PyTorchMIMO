@@ -10,8 +10,8 @@ class optuna_config(NamedTuple):
     class_distribution = 'normal'
     n_random_trials = 35
     # Number of training and validation samples per epoch
-    n_train_examples = 50000
-    n_test_examples = 2000
+    n_train_examples = 500
+    n_test_examples = 200
     # Enable pruning (custom pruning can be modified from the trainer.py script)
     allow_default_pruning = True
     custom_pruning = True
@@ -49,9 +49,9 @@ class master_config(NamedTuple):
     optuna_config = optuna_config
     model_config = model_config
     training_config = training_config
-    num_epochs = 50
+    num_epochs = 1
     dataloader_params = {'pin_memory':True,
                          'drop_last': True}
-    num_trials = 100
+    num_trials = 1
     batch_size = [4, 8]
     ensemble_num = [3, 4]

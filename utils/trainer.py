@@ -6,7 +6,7 @@ import pickle
 import optuna
 from utils.dataloaders import create_train_dataloader, create_test_dataloader
 from utils.model import MimoCnnModel
-
+import utils.helper as hl
 
 torch.backends.cudnn.benchmark = True
 
@@ -99,7 +99,12 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
                                                   ocf.accuracy_threshold, acc)
         if should_prune:
             raise optuna.exceptions.TrialPruned()
-
+    metrics, results = hl.get_runtime_model_size(test_loader,model,batch_size)
+    metrics_dict = metrics
+    metrics = hl.get_metrics(results['preds'],results['targets'],n_class=mcf.num_categories)
+    metrics_dict.update(metrics)
+    print(metrics_dict)
+    hl.record_metrics(metrics_dict,f'model_repo\\metrics_{study_name}.json')
     with open(f"model_repo\\{trial.number}_{study_name}.pkl", "wb") as fout:
         pickle.dump(model, fout)
 

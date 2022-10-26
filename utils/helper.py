@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader
 import thop
 import torchmetrics
 import torch.distributions as dists
+import os
+import json
 
 log = logging.debug
 
@@ -108,7 +110,7 @@ def get_runtime_model_size(dataloader: DataLoader, model, batch_size: int):
     model.to(device)
     start_time = time.time()
     for data in dataloader:
-        outputs = model(data[0])
+        outputs = model(data[0].to(device))
         output = torch.mean(outputs, axis=1).cpu().detach()
         preds.append(output.cpu().detach())
         targets.append(data[1].cpu().detach())
@@ -118,21 +120,38 @@ def get_runtime_model_size(dataloader: DataLoader, model, batch_size: int):
     flops, params = thop.profile(model.to(device), inputs=(data[0].to(device),), verbose=False)
     flops = flops / batch_size
     runtime = runtime / dataset_len
-    results = {'flops': flops,
+    metrics = {'flops': flops,
                'params': params,
-               'runtime': runtime,
-               'preds': preds,
+               'runtime': runtime}
+    results = {'preds': preds,
                'targets': targets}
-    return results
+    return metrics, results
 
 
 def get_metrics(predictions, targets, ece_bins=10, n_class=2):
     metrics = dict()
-    metrics['nll'] = -dists.Categorical(predictions).log_prob(targets).mean()
-    metrics['ece'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins)
-    metrics['mce'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins)
-    metrics['auroc'] = torchmetrics.functional.auroc(predictions, targets, num_classes=n_class)
+    metrics['nll'] = -dists.Categorical(predictions).log_prob(targets).mean().item()
+    metrics['ece'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins).item()
+    metrics['mce'] = torchmetrics.functional.calibration_error(predictions, targets, n_bins=ece_bins).item()
+    metrics['auroc'] = torchmetrics.functional.auroc(predictions, targets, num_classes=n_class).item()
     return metrics
+'''Function to record additional performance metrics on the models and save them during ongoing trials
+Inputs path and metrics to be recorded
+Outputs a JSON file in the specified path'''
+
+def record_metrics(metrics, path):
+    if not os.path.isfile(path):
+        with open(path, 'w') as fout:
+            metric={'metric_list':[metrics]}
+            json.dump(metric,fout)
+    else:
+        with open(path,'r+') as fin:
+            metric = json.load(fin)
+            metric['metric_list'].append(metrics)
+            fin.seek(0)
+            # convert back to json.
+            json.dump(metric, fin, indent=4)
+    return None
 
 
 if __name__ == "__main__":
