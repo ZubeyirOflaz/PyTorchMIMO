@@ -49,9 +49,9 @@ class master_config(NamedTuple):
     optuna_config = optuna_config
     model_config = model_config
     training_config = training_config
-    num_epochs = 1
+    num_epochs = 5
     dataloader_params = {'pin_memory':True,
                          'drop_last': True}
-    num_trials = 1
+    num_trials = 5
     batch_size = [4, 8]
     ensemble_num = [3, 4]

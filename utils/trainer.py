@@ -99,8 +99,10 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
                                                   ocf.accuracy_threshold, acc)
         if should_prune:
             raise optuna.exceptions.TrialPruned()
+
+    metrics_dict = {'trial_number':trial.number}
     metrics, results = hl.get_runtime_model_size(test_loader,model,batch_size)
-    metrics_dict = metrics
+    metrics_dict.update(metrics)
     metrics = hl.get_metrics(results['preds'],results['targets'],n_class=mcf.num_categories)
     metrics_dict.update(metrics)
     print(metrics_dict)

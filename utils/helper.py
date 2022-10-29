@@ -17,11 +17,13 @@ log = logging.debug
 '''Function to create a pandas dataframe from trials. Inputs an Optuna study, outputs a Pandas dataframe'''
 
 
-def create_study_analysis(optuna_study):
+def create_study_analysis(optuna_study,metrics_dict):
     parameters = [i.params for i in optuna_study]
     accuracy = [y.value for y in optuna_study]
     state = [i.state.name for i in optuna_study]
     df = pd.DataFrame(parameters)
+    metrics_df = pd.DataFrame(metrics_dict['metric_list'])
+    df = pd.concat([df,metrics_df], axis=1)
     df.insert(0, 'accuracy', accuracy)
     df.assign(trial_state=state, inplace=True)
     df.sort_values('accuracy', ascending=False, inplace=True)
@@ -152,6 +154,10 @@ def record_metrics(metrics, path):
             # convert back to json.
             json.dump(metric, fin, indent=4)
     return None
+def read_metrics(path):
+    with open(path, 'r+') as fin:
+        metrics = json.load(fin)
+        return metrics
 
 
 if __name__ == "__main__":
