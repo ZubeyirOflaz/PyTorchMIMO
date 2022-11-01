@@ -8,7 +8,7 @@ import random
 import optuna
 from functools import partial
 import pickle
-from utils.helper import create_study_analysis, read_metrics
+from utils.helper import create_study_analysis, read_metrics, visualize_study
 from optuna.trial import TrialState
 
 study_name = str(random.randint(100000, 999999))
@@ -65,5 +65,6 @@ if __name__ == '__main__':
         pickle.dump(best_model, fout)
     metrics = read_metrics(f'model_repo\\metrics_{study_name}.json')
     trial_dataframe = create_study_analysis(study.get_trials(deepcopy=True),metrics)
+    study_visualizations = visualize_study(study, params=None)
     with open(f'model_repo\\study_{study.study_name}.pkl', 'wb') as fout:
         pickle.dump(study, fout)

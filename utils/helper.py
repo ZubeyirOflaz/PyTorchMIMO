@@ -11,6 +11,7 @@ import torchmetrics
 import torch.distributions as dists
 import os
 import json
+from optuna import visualization
 
 log = logging.debug
 
@@ -113,7 +114,7 @@ def get_runtime_model_size(dataloader: DataLoader, model, batch_size: int):
     start_time = time.time()
     for data in dataloader:
         outputs = model(data[0].to(device))
-        output = torch.mean(outputs, axis=1).cpu().detach()
+        output = torch.exp(torch.mean(outputs, axis=1)).cpu().detach()
         preds.append(output.cpu().detach())
         targets.append(data[1].cpu().detach())
     runtime = time.time() - start_time
@@ -158,6 +159,17 @@ def read_metrics(path):
     with open(path, 'r+') as fin:
         metrics = json.load(fin)
         return metrics
+
+
+'''Creates collection of plots to visualize the study results and relationship between hyperparameters'''
+
+def visualize_study(study, params = None):
+    visual_dict = dict()
+    visual_dict['trials'] = visualization.plot_intermediate_values(study)
+    visual_dict['parallel_coordinate'] = visualization.plot_parallel_coordinate(study, params)
+    visual_dict['contour'] = visualization.plot_contour(study,params)
+    visual_dict['hyperparameter_importance'] = visualization.plot_param_importances(study,params)
+
 
 
 if __name__ == "__main__":
