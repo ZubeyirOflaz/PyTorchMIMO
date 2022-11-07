@@ -8,7 +8,7 @@ from functools import partial
 
 '''Preload data to GPU using collate functions'''
 
-def collate_training(batch, batch_size, ensemble_num, device):
+def collate_training(batch, batch_size, ensemble_num):
     # get x and y
     data = [i[0] for i in batch]
     target = [i[1] for i in batch]
@@ -29,7 +29,7 @@ def collate_training(batch, batch_size, ensemble_num, device):
 '''collating function for the test dataloader'''
 
 
-def collate_test(batch, ensemble_num, device):
+def collate_test(batch, ensemble_num):
     # get x and y
     data = [i[0] for i in batch]
     target = torch.tensor([i[1] for i in batch])
@@ -38,20 +38,33 @@ def collate_test(batch, ensemble_num, device):
     return [data_mimo, target]
 
 
-def create_train_dataloader(dataset, batch_size, ensemble_num, device, **params):
+def create_train_dataloader(dataset, batch_size, ensemble_num, num_categories, class_distribution, **params):
     '''complete_dataset = [[dataset] * ensemble_num]
     complete_dataset = ConcatDataset(complete_dataset)'''
+    if class_distribution == 'equalized':
+        from helper import weighted_classes
+        sample_dist = torch.DoubleTensor(weighted_classes(dataset, num_categories))
+        sampler = torch.utils.data.sampler.WeightedRandomSampler(sample_dist, len(sample_dist))
+        params['sampler'] = sampler
+        params['shuffle'] = False
+
     train_loader = DataLoader(dataset, batch_size=(batch_size * ensemble_num),
                               collate_fn=partial(collate_training,
-                                                 batch_size=batch_size, ensemble_num=ensemble_num, device=device),
+                                                 batch_size=batch_size, ensemble_num=ensemble_num),
                               **params)
     return train_loader
 
 
-def create_test_dataloader(dataset, batch_size, ensemble_num, device, **params):
+def create_test_dataloader(dataset, batch_size, ensemble_num,num_categories, class_distribution, **params):
+    if class_distribution == 'equalized':
+        from helper import weighted_classes
+        sample_dist = torch.DoubleTensor(weighted_classes(dataset, num_categories))
+        sampler = torch.utils.data.sampler.WeightedRandomSampler(sample_dist, len(sample_dist))
+        params['sampler'] = sampler
+        params['shuffle'] = False
     test_loader = DataLoader(dataset, batch_size=batch_size,
                              collate_fn=partial(collate_test,
-                                                ensemble_num=ensemble_num, device=device),
+                                                ensemble_num=ensemble_num),
                              **params)
     return test_loader
 

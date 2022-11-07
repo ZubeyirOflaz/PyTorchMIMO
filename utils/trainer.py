@@ -28,10 +28,11 @@ def objective(trial, datasets, study_name, config, mimo_model=MimoCnnModel):
     num_epochs = config.num_epochs
     batch_size = trial.suggest_categorical('batch_size', config.batch_size)
     ensemble_num = trial.suggest_categorical('ensemble_num', config.ensemble_num)
-    train_loader = create_train_dataloader(datasets['train_dataset'],
-                                           batch_size, ensemble_num,device,**config.dataloader_params)
+    train_loader = create_train_dataloader(datasets['train_dataset'], batch_size, ensemble_num, mcf.num_categories,
+                                           ocf.class_distribution,**config.dataloader_params)
     test_loader = create_test_dataloader(datasets['test_dataset'],
-                                         batch_size, ensemble_num,device,**config.dataloader_params)
+                                         batch_size, ensemble_num,mcf.num_categories,
+                                           ocf.class_distribution,**config.dataloader_params)
     try:
         model = mimo_model(trial=trial, ensemble_num=ensemble_num, cfg=mcf).to(device)
         print(model)
