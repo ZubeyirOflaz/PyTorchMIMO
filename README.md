@@ -2,12 +2,12 @@
   Implementation of MIMO models in PyTorch with Automated Hyperparameter Selection
   <br>
 </h1>
-# MIMO Model in Pytorch (In Progress)
+
 Application of Multi-Input Multi-Output (MIMO) model from the paper Training independent subnetworks for robust
 prediction (Available online at https://arxiv.org/pdf/2010.06610)
 in Pytorch with automated hyperparameter optimization. Project in progress.
 
-##Summary of Multi-Input Multi-Output Models
+## Summary of Multi-Input Multi-Output Models
 
 | ![docs/model_training_prediction.png](docs/model_training_prediction.png) | 
 |:--:| 
